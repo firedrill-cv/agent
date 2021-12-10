@@ -1,0 +1,66 @@
+POST http://localhost:9000/2015-03-31/functions/function/invocations HTTP/1.1
+content-type: application/json
+
+{
+		"version": 1,
+		"name": "Production API Test",
+		"description": "Test our production app tier",
+		"tags": [
+			"prod",
+			"state"
+		],
+		"cloud_account_id": "b63d5308-561c-11ec-8719-784f4371f2e3",
+		"region": "us-east-1",
+		"steady_states": [
+			{
+				"name": "Healthcheck must stay up",
+				"type": "http",
+				"endpoint": "https://afkmgnkqgn.us-east-1.awsapprunner.com/health",
+				"status": 200
+			}
+		],
+		"steps": [
+			{
+				"name": "Stop one server in ASG",
+				"type": "action",
+				"action": "stop_random_instances",
+				"parameters": {
+					"asg_names": [
+						"example-asg"
+					],
+					"instance_count": 1
+				}
+			},
+			{
+				"name": "A server should come back up",
+				"type": "expected_event",
+				"event_type": "webhook",
+				"parameters": {
+					"jq": ".[\"detail-type\"] == \"EC2 Instance Launch Successful\" and .[\"detail\"][\"AutoScalingGroupName\"] == \"example-asg\""
+				}
+			},
+			{
+				"name": "A test webhook should be received",
+				"type": "expected_event",
+				"event_type": "webhook",
+				"parameters": {
+					"jq": ".[\"test\"] == \"event\""
+				}
+			}
+		]
+	}
+
+### 
+
+POST http://localhost:9000/2015-03-31/functions/function/invocations HTTP/1.1
+content-type: application/json
+
+{
+    "runner_token": "dak@#Fdfadlkfla#f",
+    "type": "run-experiment",
+    "test_suite_run_id": "test-run-id",
+    "test_suite_run_step_id": "test-step-id",
+    "eventbridge_bus_name": "default",
+    "signature": "813cbe7722e939df418fc0fa138aa6cea676e42f627c41b41dee29450698a674",
+    "payload": {"configuration": {"aws_region": "us-east-1"}, "description": "Stop a random number of tasks in the cluster", "method": [{"name": "Stop tasks", "pauses": {"after": 5}, "provider": {"arguments": {"cluster": "chinchilla-api-dev", "task_percent": 50}, "func": "stop_random_tasks", "module": "chaosaws.ecs.actions", "type": "python"}, "type": "action"}, {"name": "Stop more tasks", "pauses": {"after": 5}, "provider": {"arguments": {"cluster": "chinchilla-api-dev", "task_percent": 100}, "func": "stop_random_tasks", "module": "chaosaws.ecs.actions", "type": "python"}, "type": "action"}], "rollbacks": [{"name": "Start an EC2 server", "provider": {"arguments": {"instance_ids": ["i-0eb96356f41ef95c1"]}, "func": "start_instances", "module": "chaosaws.ec2.actions", "type": "python"}, "type": "action"}], "steady-state-hypothesis": {"probes": [{"name": "Check Products API", "provider": {"expected_status": 200, "type": "http", "url": "http://chinchilla-api-dev-878609447.us-east-1.elb.amazonaws.com/products"}, "tolerance": 200, "type": "probe"}], "title": "Steady state"}, "title": "Kill API Tasks"}
+}

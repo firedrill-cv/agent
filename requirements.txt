@@ -1,0 +1,12 @@
+boto3
+chaostoolkit
+chaostoolkit-lib
+chaostoolkit-aws
+chaostoolkit-k6
+chaostoolkit-toxiproxy
+pyjwt
+logzero
+
+# /libs/chaostoolkit
+# /libs/chaostoolkit-k6
+# /libs/chaostoolkit-lib

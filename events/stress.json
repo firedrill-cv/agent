@@ -1,0 +1,45 @@
+{
+    "runner_token": "1234djf2f#f",
+    "event_url": "https://chaoscollector.ngrok.io/events",
+    "experiment": {
+        "version": "1.0.0",
+        "title": "Not set",
+        "description": "Not set",
+        "tags": [],
+        "configuration": {
+            "aws_region": "us-east-1"
+        },
+        "steady-state-hypothesis": {
+            "title": "HTTP calls will continue to work",
+            "probes": [
+                {
+                    "name": "healthcheck",
+                    "type": "probe",
+                    "tolerance": 200,
+                    "provider": {
+                        "type": "http",
+                        "url": "https://chaoscollector.ngrok.io/health",
+                        "expected_status": 200
+                    }
+                }
+            ]
+        },
+        "method": [
+            {
+                "name": "stress-endpoint-30s",
+                "type": "action",
+                "provider": {
+                    "type": "python",
+                    "module": "chaosk6.actions",
+                    "func": "stress_endpoint",
+                    "arguments": {
+                        "endpoint": "https://chaoscollector.ngrok.io/ping",
+                        "vus": 50,
+                        "duration": "30s"
+                    }
+                }
+            }
+        ],
+        "rollbacks": []
+    }
+}

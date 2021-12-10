@@ -1,0 +1,66 @@
+{
+    "runner_token": "dak@#Fdfadlkfla#f",
+    "type": "run-experiment",
+    "test_suite_run_id": "test-run-id",
+    "test_suite_run_step_id": "test-step-id",
+    "eventbridge_bus_name": "chinchilla-event-bus",
+    "payload": {
+        "version": "1.0.0",
+        "title": "Not set",
+        "description": "Not set",
+        "tags": [],
+        "configuration": {
+            "aws_region": "us-east-1"
+        },
+        "steady-state-hypothesis": {
+            "title": "The instance will stay up during the attack",
+            "probes": [
+                {
+                    "name": "healthcheck",
+                    "type": "probe",
+                    "tolerance": 200,
+                    "provider": {
+                        "type": "http",
+                        "url": "https://chaoscollector.ngrok.io/health",
+                        "expected_status": 200
+                    }
+                }
+            ]
+        },
+        "method": [
+            {
+                "name": "stop-an-ec2-instance",
+                "type": "action",
+                "provider": {
+                    "type": "python",
+                    "module": "chaosaws.ec2.actions",
+                    "func": "stop_instances",
+                    "arguments": {
+                        "instance_ids": [
+                            "i-0eb96356f41ef95c1"
+                        ]
+                    }
+                }
+            }
+        ],
+        "rollbacks": [
+            {
+                "name": "start-an-ec2-instances",
+                "type": "action",
+                "pauses": {
+                    "before": 5
+                },
+                "provider": {
+                    "type": "python",
+                    "module": "chaosaws.ec2.actions",
+                    "func": "start_instances",
+                    "arguments": {
+                        "instance_ids": [
+                            "i-0eb96356f41ef95c1"
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
