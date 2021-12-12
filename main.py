@@ -31,8 +31,6 @@ def run(body, context):
 
     # Payload is there, figure out what to do with it
     else:
-        payload = body["payload"]
-
         # Check signature
         disable_signing = os.environ.get("DISABLE_SIGNING")
         if disable_signing and disable_signing == "true":
@@ -41,7 +39,9 @@ def run(body, context):
             })
             verified = True
         else:
-            verified = mothership.verifySignature(body["signature"], payload)
+            signature = body["signature"]
+            del body["signature"]
+            verified = mothership.verifySignature(signature, body)
 
         if verified == False:
             print('Invalid signature, not running.')
@@ -51,15 +51,15 @@ def run(body, context):
             }
 
         # CTK Experiment
-        elif body["type"] == "run-experiment":
+        elif body["type"] == "attack.state":
             functions.run_ctk_experiement(body)
 
-        # Chinchilla attack
-        elif body["type"] == "run-step":
-            functions.run_step(body)
+        # Resource attack (via SSM, usually)
+        elif body["type"] == "attack.resource":
+            functions.run_resource_attack(body)
 
-        # Scan
-        elif body["type"] == "scan-services":
+        # Do an inventory scan
+        elif body["type"] == "scan.inventory":
             functions.run_service_scan(body)
         else:
             print("Invalid event type: " + body["type"])

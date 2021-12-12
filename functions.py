@@ -37,6 +37,7 @@ supported_resource_types = ["dynamodb", "rds", "ecs", "ecr", "ec2",
                             "alb", "elb", "lambda", "eks", "elbv2", "iam", "route53", "ssm"]
 
 eventbridgeClient = boto3.client("events")
+ssm_client = boto3.client("ssm")
 
 
 def parse_arn_to_components(arn):
@@ -312,13 +313,34 @@ def run_ctk_experiement(body):
     return
 
 
-def run_step(body: object):
-    """
-    Run a native chinchilla test suite step
-    """
+def run_resource_attack(body: object):
+    ssm_document = body["payload"]
     logger.debug({
-        "message": "Running step.",
-        "body": str(body),
+        "message": "Running SSM based attack.",
+        "body": str(ssm_document),
     })
 
-    return True
+    try:
+        response = ssm_client.send_command(**ssm_document)
+        status_code = response["ResponseMetadata"]["HTTPStatusCode"]
+        request_id = response["ResponseMetadata"]["RequestId"]
+
+        if status_code != 200:
+            logger.error({
+                "message": "Non-200 HTTP code returned from SSM",
+                "status_code": status_code,
+                "request_id": request_id,
+            })
+            return False
+
+        logger.debug({
+            "message": "Sent command successfully.",
+            "request_id": request_id,
+            "response": response,
+        })
+
+        return True
+    except Exception as ex:
+        logger.exception(ex)
+
+        return False
