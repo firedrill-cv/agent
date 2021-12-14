@@ -8,4 +8,6 @@ docker run -it --rm -p 9000:8080  \
     -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
     -e AWS_DEFAULT_REGION=us-east-1 \
     -e DISABLE_SIGNING=true \
+    -e RUNNER_ID=d8658f8e-1979-11ec-8334-784f4371f2e3 \
+    -e RUNNER_KEY=snqRLi8IVGJ0QEzK3ON9RFbXLmFpPt6xYxsHc1IRbwvNaZ4jRm \
     chinchilla-runner

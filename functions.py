@@ -204,7 +204,7 @@ def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
             Entries=[
                 {
                     'Source': 'chinchilla',
-                    'DetailType': "Runner Event",
+                    'DetailType': "runner.event",
                     'Detail': detail,
                     'EventBusName': "default",
                 },
@@ -273,7 +273,7 @@ def run_ctk_experiement(body):
         # ]
     }
 
-    send_event(test_suite_run_step_id, RunFlowEvent.RunStarted.value,
+    send_event(test_suite_run_step_id, "started",
                experiment)
 
     has_deviated = False
@@ -298,13 +298,13 @@ def run_ctk_experiement(body):
     })
 
     if journal_status == "completed":
-        send_event(test_suite_run_step_id, RunFlowEvent.RunCompleted.value,
+        send_event(test_suite_run_step_id, "completed",
                    journal)
     elif has_deviated:
-        send_event(test_suite_run_step_id, RunFlowEvent.RunDeviated.value,
+        send_event(test_suite_run_step_id, "deviated",
                    journal)
     elif has_failed:
-        send_event(test_suite_run_step_id, RunFlowEvent.RunFailed.value,
+        send_event(test_suite_run_step_id, "failed",
                    journal)
 
     logger.info({
@@ -314,33 +314,90 @@ def run_ctk_experiement(body):
 
 
 def run_resource_attack(body: object):
+    """
+    Only runs SSM-based attacks right now
+    """
     ssm_document = body["payload"]
+    test_suite_run_step_id = body['test_suite_run_step_id']
+
     logger.debug({
         "message": "Running SSM based attack.",
+        "test_suite_run_step_id": test_suite_run_step_id,
         "body": str(ssm_document),
     })
 
     try:
         response = ssm_client.send_command(**ssm_document)
+        command_id = response["Command"]["CommandId"]
+        pending_instance_ids = response["Command"]["InstanceIds"]
         status_code = response["ResponseMetadata"]["HTTPStatusCode"]
         request_id = response["ResponseMetadata"]["RequestId"]
 
         if status_code != 200:
             logger.error({
                 "message": "Non-200 HTTP code returned from SSM",
+                "test_suite_run_step_id": test_suite_run_step_id,
                 "status_code": status_code,
+                "command_id": command_id,
                 "request_id": request_id,
             })
             return False
 
         logger.debug({
-            "message": "Sent command successfully.",
+            "message": "Sent command successfully, waiting for command completion on all instances",
+            "test_suite_run_step_id": test_suite_run_step_id,
             "request_id": request_id,
             "response": response,
+            "command_id": command_id,
+            "instance_ids": pending_instance_ids,
         })
 
-        return True
+        # Send command ID
+        send_event(test_suite_run_step_id, "started", {
+            "command_id": command_id,
+            "instance_ids": pending_instance_ids
+        })
+
+        # Watch the command for the provided timeout
+        while len(pending_instance_ids) > 0:
+            for instance_id in pending_instance_ids:
+                response = ssm_client.get_command_invocation(
+                    CommandId=command_id,
+                    InstanceId=instance_id,
+                )
+                instance_status = response['Status']
+                logger.debug({
+                    "message": "Waiting for instance command to finish running...",
+                    "instance_id": instance_id,
+                    "instance_status": instance_status,
+                })
+
+                # If we're still waiting for it
+                if instance_status == "Pending" or instance_status == "InProgress":
+                    continue
+
+                # If it's successfully completed, remove it from the list
+                elif instance_status == "Success":
+                    pending_instance_ids.remove(instance_id)
+                    continue
+
+                # If it's any other status, don't proceed
+                else:
+                    send_event(test_suite_run_step_id, "failed", {
+                        "command_id": command_id,
+                        "message": "Failed to issue SSM command to target",
+                        "target_instance_id": instance_id,
+                        "status": instance_status
+                    })
+            time.sleep(5)
+        logger.debug({
+            "message": "Successfully ran SSM commands"
+        })
+        send_event(test_suite_run_step_id, "completed", {
+            "command_id": command_id,
+        })
     except Exception as ex:
         logger.exception(ex)
-
+        send_event(test_suite_run_step_id, "failed",
+                   ex)
         return False
