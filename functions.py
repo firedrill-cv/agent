@@ -203,7 +203,7 @@ def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
         event_result = eventbridgeClient.put_events(
             Entries=[
                 {
-                    'Source': 'chinchilla',
+                    'Source': 'firedrill',
                     'DetailType': "runner.event",
                     'Detail': detail,
                     'EventBusName': "default",
@@ -401,3 +401,18 @@ def run_resource_attack(body: object):
         send_event(test_suite_run_step_id, "failed",
                    ex)
         return False
+
+
+def run_wait(body: object):
+    test_suite_run_step_id = body['test_suite_run_step_id']
+    logger.info({
+        "message": "Wait starting...",
+        "test_suite_run_step_id": test_suite_run_step_id,
+    })
+    time.sleep(10)
+    logger.info({
+        "message": "Wait complete.",
+        "test_suite_run_step_id": test_suite_run_step_id,
+    })
+    send_event(test_suite_run_step_id, "completed", {})
+    return True
