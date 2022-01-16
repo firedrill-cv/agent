@@ -1,6 +1,4 @@
-from datetime import datetime
 import time
-import mothership
 import boto3
 import botocore
 import json
@@ -66,14 +64,6 @@ def parse_arn_to_components(arn):
 
 def run_service_scan(execution_id: str, execution_token: str, config: object):
     client = boto3.client('resourcegroupstaggingapi')
-
-    mothership.send_toolkit_event(
-        execution_id,
-        execution_token,
-        "run-started",
-        "scan",
-        None,
-    )
 
     print("Getting service list, execution ID: " + execution_id)
 
@@ -176,14 +166,6 @@ def run_service_scan(execution_id: str, execution_token: str, config: object):
 
     print('Found ' + str(len(services)) + ' services in the scan')
 
-    # Send notification mimicing https://chaostoolkit.org/reference/usage/notification/
-    mothership.send_toolkit_event(
-        execution_id,
-        execution_token,
-        "run-completed",
-        "scan",
-        services
-    )
     return
 
 
@@ -203,7 +185,7 @@ def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
         event_result = eventbridgeClient.put_events(
             Entries=[
                 {
-                    'Source': 'chinchilla',
+                    'Source': 'firedrill',
                     'DetailType': "runner.event",
                     'Detail': detail,
                     'EventBusName': "default",
@@ -401,3 +383,18 @@ def run_resource_attack(body: object):
         send_event(test_suite_run_step_id, "failed",
                    ex)
         return False
+
+
+def run_wait(body: object):
+    test_suite_run_step_id = body['test_suite_run_step_id']
+    logger.info({
+        "message": "Wait starting...",
+        "test_suite_run_step_id": test_suite_run_step_id,
+    })
+    time.sleep(60)
+    logger.info({
+        "message": "Wait complete.",
+        "test_suite_run_step_id": test_suite_run_step_id,
+    })
+    send_event(test_suite_run_step_id, "completed", {})
+    return True
