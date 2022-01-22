@@ -1,7 +1,0 @@
-notifications:
- -
-  type: http
-  url: https://chaoscollector.ngrok.io/notification
-  verify_tls: true
-  headers:
-    Auth: "Bearer 1234"

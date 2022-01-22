@@ -263,8 +263,6 @@ def run_ctk_experiement(body):
 
     journal = run_experiment(
         experiment,
-        settings=settings,
-        strategy=Strategy.CONTINUOUS,
         schedule=schedule,
         experiment_vars={},
     )

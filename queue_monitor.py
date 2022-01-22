@@ -10,6 +10,7 @@ import functions
 scheduler = sched.scheduler(time.time, time.sleep)
 schedule_interval = 1
 monitor = None
+t = None
 
 
 def setInterval(interval):
@@ -46,21 +47,18 @@ def sqs_monitor(test_suite_run_step_id):
     # print(response)
 
     if "Messages" not in response or len(response["Messages"]) == 0:
-        print('No messages in the SQS queue.')
+        print('[QUEUE] No messages in the SQS queue.')
         return
 
     messages = response["Messages"]
     message = messages[0]
 
     if "Body" not in message:
-        print("Body not in message")
+        print("[QUEUE] Body not in message, ignoring.")
         print(message)
         return
 
     message_body = json.loads(message['Body'])
-
-    print("MESSAGE BODY:")
-    print(message_body)
 
     type = message_body['type']
 
@@ -68,29 +66,32 @@ def sqs_monitor(test_suite_run_step_id):
         QueueUrl=queue_url,
         ReceiptHandle=message['ReceiptHandle']
     )
-    print("Deleted message from queue")
+    print("[QUEUE] Deleted message from queue")
 
-    print('TYPE: {}'.format(type))
+    print('[QUEUE] Message type: {}'.format(type))
 
     if type == "killswitch":
-        print("Received killswitch, terminating.")
+        print("[QUEUE] Received killswitch, terminating.")
         stop_watching_queue()
         functions.send_event(test_suite_run_step_id, "stopped", message_body)
         sys.exit(0)
 
 
 def start_watching_queue(test_suite_run_step_id):
-    print("Start watching queue...")
+    print("[QUEUE] Starting watcher...")
     monitor = sqs_monitor(test_suite_run_step_id)
 
 
 def stop_watching_queue():
+    if t is not None:
+        t.stop()
     if monitor is None:
-        print("Watcher already closed.")
+        print("[QUEUE] Watcher was already closed.")
     else:
-        print("Stop watching queue...")
+        print("[QUEUE] Stopping watcher...")
         try:
             monitor()
+            print("[QUEUE] Watcher stopped successfully.")
         except Exception as ex:
-            print("Failed to stop watcher! Error thrown!")
+            print("[QUEUE] Failed to stop watcher!")
             print(str(ex))

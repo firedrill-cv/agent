@@ -3,3 +3,5 @@ venv/
 libs/*
 __pycache__
 .serverless/*
+build.zip
+build/

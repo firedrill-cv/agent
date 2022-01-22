@@ -20,7 +20,6 @@ RUN pip install -U -r  ${LAMBDA_TASK_ROOT}/requirements.txt
 # Copy code
 COPY ./main.py ./main.py
 COPY ./functions.py ./functions.py
-COPY ./mothership.py ./mothership.py
 COPY ./queue_monitor.py ./queue_monitor.py
 
 # Run the app
