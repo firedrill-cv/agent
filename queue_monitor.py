@@ -7,6 +7,8 @@ import json
 import sys
 import functions
 
+queue_url = os.environ.get("SQS_URL")
+
 scheduler = sched.scheduler(time.time, time.sleep)
 schedule_interval = 1
 monitor = None
@@ -33,7 +35,6 @@ def setInterval(interval):
 @setInterval(schedule_interval)
 def sqs_monitor(test_suite_run_step_id):
     sqs = boto3.client('sqs')
-    queue_url = os.environ.get("SQS_URL")
     print("Checking SQS Queue: {}".format(queue_url))
     response = sqs.receive_message(
         QueueUrl=queue_url,
@@ -66,7 +67,6 @@ def sqs_monitor(test_suite_run_step_id):
         QueueUrl=queue_url,
         ReceiptHandle=message['ReceiptHandle']
     )
-    print("[QUEUE] Deleted message from queue")
 
     print('[QUEUE] Message type: {}'.format(type))
 
@@ -78,7 +78,7 @@ def sqs_monitor(test_suite_run_step_id):
 
 
 def start_watching_queue(test_suite_run_step_id):
-    print("[QUEUE] Starting watcher...")
+    print("[QUEUE] Starting watcher on queue: {}".format(queue_url))
     monitor = sqs_monitor(test_suite_run_step_id)
 
 

@@ -22,20 +22,28 @@ class GracefulKiller:
         self.kill_now = True
 
 
-def run(body, context):
+def run(eventBridgeBody, context):
+
+    print(eventBridgeBody)
+
+    body = eventBridgeBody['detail']
 
     # Ensure all of the required fields are provided
     if body == None or "type" not in body:
         raise KeyError("No 'type' parameter in body.")
-    elif body["payload"] == None:
+    elif "payload" not in body:
         raise KeyError("No 'payload' parameter in body.")
 
     # Start checking the SQS queue for updates
-    queue_monitor.start_watching_queue(
-        test_suite_run_step_id=body['test_suite_run_step_id'])
+    if "test_suite_run_step_id" in body:
+        queue_monitor.start_watching_queue(
+            test_suite_run_step_id=body['test_suite_run_step_id'])
 
+    # Healthcheck
+    if body["type"] == "healthcheck":
+        functions.run_healthcheck()
     # CTK Experiment
-    if body["type"] == "attack.state":
+    elif body["type"] == "attack.state":
         functions.run_ctk_experiement(body)
     # Resource attack (via SSM, usually)
     elif body["type"] == "attack.resource":

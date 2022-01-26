@@ -185,13 +185,15 @@ def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
         event_result = eventbridgeClient.put_events(
             Entries=[
                 {
-                    'Source': 'firedrill',
+                    'Source': 'firedrill.runner',
                     'DetailType': "runner.event",
                     'Detail': detail,
-                    'EventBusName': "default",
+                    'EventBusName': "firedrill",
                 },
             ]
         )
+
+        logger.debug(event_result)
 
         if event_result["FailedEntryCount"] == 0:
             return {
@@ -396,3 +398,10 @@ def run_wait(body: object):
     })
     send_event(test_suite_run_step_id, "completed", {})
     return True
+
+
+def run_healthcheck():
+    logger.info({
+        "message": "Healthcheck initiated",
+    })
+    send_event("healthcheck", "healthcheck", {})
