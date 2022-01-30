@@ -22,7 +22,21 @@ class GracefulKiller:
         self.kill_now = True
 
 
+"""
+Detect when a re-delivery is made to the same invocation and ignore it
+https://medium.com/appgambit/event-failures-and-retries-with-aws-serverless-messaging-services-a3990fce184d
+"""
+delivery_ids = []
+
+
 def run(eventBridgeBody, context):
+
+    if eventBridgeBody['id'] in delivery_ids:
+        print('Duplicate delivery: {}'.format(eventBridgeBody['id']))
+        return
+    else:
+        print('New delivery ID: {}'.format(eventBridgeBody['id']))
+        delivery_ids.append(eventBridgeBody['id'])
 
     print(eventBridgeBody)
 
@@ -57,8 +71,6 @@ def run(eventBridgeBody, context):
     else:
         print("Invalid event type: " + body["type"])
 
-    print('Processing complete.')
+    print('Finished execution.')
     queue_monitor.stop_watching_queue()
-    return {
-        "success": True,
-    }
+    return

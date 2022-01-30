@@ -1,3 +1,4 @@
+from posix import environ
 import time
 import boto3
 import botocore
@@ -171,25 +172,31 @@ def run_service_scan(execution_id: str, execution_token: str, config: object):
 
 def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
 
-    detail = json.dumps({
+    detail = {
         "event_type": event_type,
         "runner_id": runner_id,
         "test_suite_run_step_id": test_suite_run_step_id,
         "payload": payload
-    })
+    }
     logger.debug({
-        "message": "Sending event to EventBridge",
+        "message": "DETAIL",
         "detail": detail
+    })
+
+    event = {
+        'Source': 'firedrill.runner',
+        'DetailType': event_type,
+        'Detail': json.dumps(detail),
+        'EventBusName': "firedrill",
+    }
+    logger.debug({
+        "message": "EVENT",
+        "event": event
     })
     try:
         event_result = eventbridgeClient.put_events(
             Entries=[
-                {
-                    'Source': 'firedrill.runner',
-                    'DetailType': "runner.event",
-                    'Detail': detail,
-                    'EventBusName': "firedrill",
-                },
+                event
             ]
         )
 
@@ -380,8 +387,14 @@ def run_resource_attack(body: object):
         })
     except Exception as ex:
         logger.exception(ex)
+
+        try:
+            payload = json.dumps(ex)
+        except Exception as ex:
+            payload = str(ex)
+
         send_event(test_suite_run_step_id, "failed",
-                   ex)
+                   payload)
         return False
 
 
@@ -404,4 +417,9 @@ def run_healthcheck():
     logger.info({
         "message": "Healthcheck initiated",
     })
-    send_event("healthcheck", "healthcheck", {})
+    send_event("healthcheck", "healthcheck", {
+        "is_default": True,
+        "AWS_REGION": os.environ.get("AWS_REGION"),
+        "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),
+        "AWS_LAMBDA_FUNCTION_NAME": os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+    })
