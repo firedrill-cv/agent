@@ -1,15 +1,12 @@
-
 import signal
 import functions
 import queue_monitor
+from logzero import logger
 
 
 class GracefulKiller:
     kill_now = False
-    signals = {
-        signal.SIGINT: 'SIGINT',
-        signal.SIGTERM: 'SIGTERM'
-    }
+    signals = {signal.SIGINT: "SIGINT", signal.SIGTERM: "SIGTERM"}
 
     def __init__(self):
         signal.signal(signal.SIGINT, self.exit_gracefully)
@@ -31,16 +28,18 @@ delivery_ids = []
 
 def run(eventBridgeBody, context):
 
-    if eventBridgeBody['id'] in delivery_ids:
-        print('Duplicate delivery: {}'.format(eventBridgeBody['id']))
+    if eventBridgeBody["id"] in delivery_ids:
+        logger.error(
+            {"message": "Duplicate delivery: {}".format(eventBridgeBody["id"])}
+        )
         return
     else:
-        print('New delivery ID: {}'.format(eventBridgeBody['id']))
-        delivery_ids.append(eventBridgeBody['id'])
+        logger.debug({"message": "New delivery ID: {}".format(eventBridgeBody["id"])})
+        delivery_ids.append(eventBridgeBody["id"])
 
-    print(eventBridgeBody)
+    logger.debug(eventBridgeBody)
 
-    body = eventBridgeBody['detail']
+    body = eventBridgeBody["detail"]
 
     # Ensure all of the required fields are provided
     if body == None or "type" not in body:
@@ -51,7 +50,8 @@ def run(eventBridgeBody, context):
     # Start checking the SQS queue for updates
     if "test_suite_run_step_id" in body:
         queue_monitor.start_watching_queue(
-            test_suite_run_step_id=body['test_suite_run_step_id'])
+            test_suite_run_step_id=body["test_suite_run_step_id"]
+        )
 
     # Healthcheck
     if body["type"] == "healthcheck":
@@ -69,8 +69,16 @@ def run(eventBridgeBody, context):
     elif body["type"] == "wait":
         functions.run_wait(body)
     else:
-        print("Invalid event type: " + body["type"])
+        logger.error(
+            {
+                "message": "Invalid event type: " + body["type"],
+            }
+        )
 
-    print('Finished execution.')
+    logger.debug(
+        {
+            "message": "Finished execution.",
+        }
+    )
     queue_monitor.stop_watching_queue()
     return

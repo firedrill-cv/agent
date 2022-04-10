@@ -6,6 +6,10 @@ chaostoolkit-k6
 chaostoolkit-toxiproxy
 pyjwt
 logzero
+urllib3
+boto3
+jmespath
+logzero
 
 # /libs/chaostoolkit
 # /libs/chaostoolkit-k6

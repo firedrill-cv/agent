@@ -21,6 +21,7 @@ RUN pip install -U -r  ${LAMBDA_TASK_ROOT}/requirements.txt
 COPY ./main.py ./main.py
 COPY ./functions.py ./functions.py
 COPY ./queue_monitor.py ./queue_monitor.py
+COPY ./event_service.py ./event_service.py
 
 # Run the app
 CMD ["main.run"]

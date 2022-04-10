@@ -1,3 +1,4 @@
+import event_service
 import threading
 import boto3
 import sched
@@ -5,7 +6,7 @@ import time
 import os
 import json
 import sys
-import functions
+from logzero import logger
 
 scheduler = sched.scheduler(time.time, time.sleep)
 schedule_interval = 1
@@ -26,75 +27,80 @@ def setInterval(interval):
             t.daemon = True  # stop if the program exits
             t.start()
             return stopped
+
         return wrapper
+
     return decorator
 
 
 @setInterval(schedule_interval)
 def sqs_monitor(test_suite_run_step_id):
-    sqs = boto3.client('sqs')
-    account_id = boto3.client('sts').get_caller_identity().get('Account')
-    queue_url = 'https://sqs.{}.amazonaws.com/{}/firedrill-runner-messages.fifo' \
-        .format(
-            os.environ.get("AWS_REGION"),
-            account_id,
-        )
-    print("Checking SQS Queue: {}".format(queue_url))
+    sqs = boto3.client("sqs")
+    account_id = boto3.client("sts").get_caller_identity().get("Account")
+    queue_url = "https://sqs.{}.amazonaws.com/{}/firedrill-runner-messages.fifo".format(
+        os.environ.get("AWS_REGION"),
+        account_id,
+    )
     response = sqs.receive_message(
         QueueUrl=queue_url,
-        AttributeNames=[
-            'All'
-        ],
+        AttributeNames=["All"],
         MaxNumberOfMessages=1,
+        WaitTimeSeconds=20,
     )
 
-    # print("SQS Queue response:")
-    # print(response)
-
     if "Messages" not in response or len(response["Messages"]) == 0:
-        print('[QUEUE] No messages in the SQS queue.')
+        logger.debug(
+            {"run_step_id": test_suite_run_step_id, "message": "No messages in queue."}
+        )
         return
 
     messages = response["Messages"]
     message = messages[0]
 
     if "Body" not in message:
-        print("[QUEUE] Body not in message, ignoring.")
-        print(message)
+        logger.error(
+            {
+                "run_step_id": test_suite_run_step_id,
+                "message": "No Body in message, ignoring.",
+            }
+        )
         return
 
-    message_body = json.loads(message['Body'])
+    message_body = json.loads(message["Body"])
 
-    type = message_body['type']
+    type = message_body["type"]
 
-    sqs.delete_message(
-        QueueUrl=queue_url,
-        ReceiptHandle=message['ReceiptHandle']
-    )
+    sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=message["ReceiptHandle"])
 
-    print('[QUEUE] Message type: {}'.format(type))
+    logger.debug({"run_step_id": test_suite_run_step_id, "message_type": type})
 
     if type == "killswitch":
-        print("[QUEUE] Received killswitch, terminating.")
-        stop_watching_queue()
-        functions.send_event(test_suite_run_step_id, "stopped", message_body)
-        sys.exit(0)
+        logger.debug(
+            {
+                "run_step_id": test_suite_run_step_id,
+                "message": "KILLSWITCH! Stopping the queue monitor.",
+            }
+        )
+        killswitch(test_suite_run_step_id, "stopped", message_body)
 
 
 def start_watching_queue(test_suite_run_step_id):
     monitor = sqs_monitor(test_suite_run_step_id)
 
 
+def killswitch(test_suite_run_step_id, status, message_body):
+    stop_watching_queue()
+    event_service.send_event(test_suite_run_step_id, status, message_body)
+    sys.exit(0)
+
+
 def stop_watching_queue():
     if t is not None:
         t.stop()
-    if monitor is None:
-        print("[QUEUE] Watcher was already closed.")
     else:
-        print("[QUEUE] Stopping watcher...")
+        logger.debug({"message": "Stopping queue watcher."})
         try:
             monitor()
-            print("[QUEUE] Watcher stopped successfully.")
+            logger.debug({"message": "Stopped watching queue successfully.."})
         except Exception as ex:
-            print("[QUEUE] Failed to stop watcher!")
-            print(str(ex))
+            logger.error({"message": "Failed to stop watching the queue."})
