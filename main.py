@@ -1,6 +1,5 @@
 import signal
 import functions
-import queue_monitor
 from logzero import logger
 
 
@@ -14,8 +13,6 @@ class GracefulKiller:
 
     def exit_gracefully(self, signum, frame):
         print("\nReceived {} signal".format(self.signals[signum]))
-        queue_monitor.stop_watching_queue()
-        print("Cleaning up resources. End of the program")
         self.kill_now = True
 
 
@@ -30,11 +27,13 @@ def run(eventBridgeBody, context):
 
     if eventBridgeBody["id"] in delivery_ids:
         logger.error(
-            {"message": "Duplicate delivery: {}".format(eventBridgeBody["id"])}
+            {
+                "message": "Duplicate delivery, not processing",
+                "id": eventBridgeBody["id"],
+            }
         )
         return
     else:
-        logger.debug({"message": "New delivery ID: {}".format(eventBridgeBody["id"])})
         delivery_ids.append(eventBridgeBody["id"])
 
     logger.debug(eventBridgeBody)
@@ -43,19 +42,20 @@ def run(eventBridgeBody, context):
 
     # Ensure all of the required fields are provided
     if body == None or "type" not in body:
-        raise KeyError("No 'type' parameter in body.")
-    elif "payload" not in body:
-        raise KeyError("No 'payload' parameter in body.")
-
-    # Start checking the SQS queue for updates
-    if "test_suite_run_step_id" in body:
-        queue_monitor.start_watching_queue(
-            test_suite_run_step_id=body["test_suite_run_step_id"]
+        logger.error(
+            {
+                "message": "No 'type' parameter in body.",
+                "eventbridge_id": eventBridgeBody["id"],
+            }
         )
+        return False
 
     # Healthcheck
     if body["type"] == "healthcheck":
         functions.run_healthcheck()
+    # Messages for runners in progress - get added to local FIFO queue
+    if body["type"] == "message":
+        functions.proxy_message(body)
     # CTK Experiment
     elif body["type"] == "attack.state":
         functions.run_ctk_experiement(body)
@@ -72,13 +72,15 @@ def run(eventBridgeBody, context):
         logger.error(
             {
                 "message": "Invalid event type: " + body["type"],
+                "eventbridge_id": eventBridgeBody["id"],
             }
         )
+        return False
 
     logger.debug(
         {
-            "message": "Finished execution.",
+            "message": "Finished executing message from EventBridge.",
+            "eventbridge_id": eventBridgeBody["id"],
         }
     )
-    queue_monitor.stop_watching_queue()
-    return
+    return True

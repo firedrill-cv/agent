@@ -8,7 +8,9 @@ runner_id = os.environ.get("RUNNER_ID")
 eventbridge_client = boto3.client("events")
 
 
-def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
+def send_event(
+    test_suite_run_step_id: str, event_type: str, is_rollback: bool, payload: dict
+):
 
     rendered_payload = {}
 
@@ -21,7 +23,7 @@ def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
             logger.error(
                 {
                     "method": "send_event",
-                    "message": "Attempted to JSON load the payload string but it didn't work.",
+                    "message": "Attempted to JSON load the outbound message, but if failed. Sending raw message instead.",
                 }
             )
             rendered_payload = {"message": payload}
@@ -40,6 +42,7 @@ def send_event(test_suite_run_step_id: str, event_type: str, payload: dict):
     detail = {
         "method": "send_event",
         "event_type": event_type,
+        "is_rollback": is_rollback,
         "runner_id": runner_id,
         "test_suite_run_step_id": test_suite_run_step_id,
         "payload": rendered_payload,
