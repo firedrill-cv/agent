@@ -1,5 +1,5 @@
-AWS_ACCESS_KEY_ID=$(aws --profile firedrill-sandbox configure get aws_access_key_id)
-AWS_SECRET_ACCESS_KEY=$(aws --profile firedrill-sandbox configure get aws_secret_access_key)
+AWS_ACCESS_KEY_ID=$(aws --profile firedrill-ct-dev configure get aws_access_key_id)
+AWS_SECRET_ACCESS_KEY=$(aws --profile firedrill-ct-dev configure get aws_secret_access_key)
 
 docker build . -t firedrill-runner
 

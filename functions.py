@@ -20,10 +20,6 @@ import event_service
 # Examples from https://github.com/chaostoolkit/chaostoolkit/blob/master/chaostoolkit/cli.py
 
 sqs = boto3.client("sqs")
-
-service_name_key = "chaos-service-name"
-service_environment_key = "chaos-service-env"
-
 runner_id = os.environ.get("RUNNER_ID")
 
 # CONSTANT - supported resource types
@@ -45,6 +41,7 @@ supported_resource_types = [
 
 ssm_client = boto3.client("ssm")
 sqs_client = boto3.client("sqs")
+resource_groups_client = boto3.client("resource-groups")
 account_id = boto3.client("sts").get_caller_identity().get("Account")
 check_interval = 3
 
@@ -80,10 +77,75 @@ def parse_arn_to_components(arn):
     return result
 
 
-def run_service_scan(execution_id: str, execution_token: str, config: object):
-    client = boto3.client("resourcegroupstaggingapi")
+# def run_service_scan(body: dict):
+#     tag_key = "component"
 
-    print("Getting service list, execution ID: " + execution_id)
+#     # logger.info(
+#     #     {
+#     #         "message": "Creating resource group",
+#     #         "method": "run_service_scan",
+#     #         "tag_key": tag_key,
+#     #     }
+#     # )
+
+#     # try:
+#     #     response = resource_groups_client.create_group(
+#     #         Name="firedrill-scan-{}".format(tag_key),
+#     #         Description="string",
+#     #         ResourceQuery={
+#     #             "Type": "TAG_FILTERS_1_0",
+#     #             "Query": "string",
+#     #         },
+#     #         Configuration=[
+#     #             {
+#     #                 "Type": "AWS::AllSupported::AllSupported",
+#     #                 "Parameters": [
+#     #                     {
+#     #                         "Name": tag_key,
+#     #                         "Values": ["test"],
+#     #                     },
+#     #                 ],
+#     #             },
+#     #         ],
+#     #     )
+#     # except Exception as ex:
+#     #     logger.error(
+#     #         {
+#     #             "message": "Error during Resource Group query",
+#     #             "method": "run_service_scan",
+#     #             "tag_key": tag_key,
+#     #             "error": str(ex),
+#     #         }
+#     #     )
+#     #     raise ex
+
+#     logger.info(
+#         {
+#             "message": "Querying resource group",
+#             "method": "run_service_scan",
+#             "tag_key": tag_key,
+#         }
+#     )
+
+#     query_response = resource_groups_client.get_group_query(Group="testing")
+#     query = query_response["GroupQuery"]["ResourceQuery"]["Query"]
+#     logger.info({"message": "Running tag query", "query": query})
+
+#     # Run the search against resources in this environment
+#     # TODO: support pagination
+#     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/resource-groups.html#ResourceGroups.Client.search_resources
+#     search_response = resource_groups_client.search_resources(
+#         ResourceQuery={"Type": "TAG_FILTERS_1_0", "Query": query}, MaxResults=50
+#     )
+
+#     print(search_response["ResourceIdentifiers"])
+
+
+def run_service_scan():
+    service_name_key = "component"
+    service_environment_key = "env"
+
+    client = boto3.client("resourcegroupstaggingapi")
 
     done = False
     pagination_token = ""

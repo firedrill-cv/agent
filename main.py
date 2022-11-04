@@ -62,9 +62,9 @@ def run(eventBridgeBody, context):
     # Resource attack (via SSM, usually)
     elif body["type"] == "attack.resource":
         functions.run_resource_attack(body)
-    # Do an inventory scan
-    elif body["type"] == "scan.inventory":
-        functions.run_service_scan(body)
+    # Do an service scan
+    elif body["type"] == "scan":
+        functions.run_service_scan()
     # Generic wait step, used for testing
     elif body["type"] == "wait":
         functions.run_wait(body)
